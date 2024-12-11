@@ -1,85 +1,119 @@
-import pymysql.cursors
-
-# Conectar ao banco de dados
-connection = pymysql.connect(host='localhost',
-                             user='usuario',
-                             password='senha',
-                             database='loja',
-                             cursorclass=pymysql.cursors.DictCursor)
-
-try:
-    with connection.cursor() as cursor:
-        # Exemplo de cadastro de um novo produto
-        sql = "INSERT INTO `Produtos` (`Nome`, `Descricao`, `QuantidadeDisponivel`, `Preco`) VALUES (%s, %s, %s, %s)"
-        cursor.execute(sql, ('Produto A', 'Descrição do Produto A', 100, 29.99))
-
-    connection.commit()
-
-    with connection.cursor() as cursor:
-        # Exemplo de consulta de produtos
-        sql = "SELECT * FROM `Produtos`"
-        cursor.execute(sql)
-        result = cursor.fetchall()
-        print(result)
-
-finally:
-    connection.close()
-
-# POO
+#Estutura de classes (POO)
 
 class Produto:
-    def __init__(self, produto_id, nome, descricao, quantidade_disponivel, preco):
-        self.produto_id = produto_id
+    def __init__(self, id, nome, descricao, quantidade_disponivel, preco):
+        self.id = id
         self.nome = nome
         self.descricao = descricao
         self.quantidade_disponivel = quantidade_disponivel
         self.preco = preco
 
+    def atualizar_quantidade(self, quantidade):
+        self.quantidade_disponivel += quantidade
+    
+    def __str__(self):
+        return f"Produto(ID: {self.id}, Nome: {self.nome}, Quantidade: {self.quantidade_disponivel}, Preço: R${self.preco})"
+
+# Classe venda
+
+import datetime
+
 class Venda:
-    def __init__(self, venda_id, produto_id, quantidade_vendida, data_venda):
-        self.venda_id = venda_id
-        self.produto_id = produto_id
+    def __init__(self, id, produto, quantidade_vendida, data_venda=None):
+        self.id = id
+        self.produto = produto  # Objeto Produto
         self.quantidade_vendida = quantidade_vendida
-        self.data_venda = data_venda
+        self.data_venda = data_venda if data_venda else datetime.datetime.now()
 
-#integrando banco de dados com POO
+    def __str__(self):
+        return f"Venda(ID: {self.id}, Produto: {self.produto.nome}, Quantidade: {self.quantidade_vendida}, Data: {self.data_venda})"
 
-class Estoque:
-    def __init__(self):
-        self.connection = pymysql.connect(host='localhost',
-                                          user='usuario',
-                                          password='senha',
-                                          database='loja',
-                                          cursorclass=pymysql.cursors.DictCursor)
+# Funções Create, Read, Update, Delete
 
-    def cadastrar_produto(self, nome, descricao, quantidade_disponivel, preco):
-        with self.connection.cursor() as cursor:
-            sql = "INSERT INTO `Produtos` (`Nome`, `Descricao`, `QuantidadeDisponivel`, `Preco`) VALUES (%s, %s, %s, %s)"
-            cursor.execute(sql, (nome, descricao, quantidade_disponivel, preco))
-        self.connection.commit()
+import mysql.connector
 
-    def consultar_produtos(self):
-        with self.connection.cursor() as cursor:
-            sql = "SELECT * FROM `Produtos`"
-            cursor.execute(sql)
-            return cursor.fetchall()
+def cadastrar_produto(produto):
+    conn = mysql.connector.connect(user='root', password='sua_senha', host='localhost', database='estoque')
+    cursor = conn.cursor()
 
-    def atualizar_quantidade(self, produto_id, quantidade_disponivel):
-        with self.connection.cursor() as cursor:
-            sql = "UPDATE `Produtos` SET `QuantidadeDisponivel` = %s WHERE `ProdutoID` = %s"
-            cursor.execute(sql, (quantidade_disponivel, produto_id))
-        self.connection.commit()
+    query = "INSERT INTO produtos (nome, descricao, quantidade_disponivel, preco) VALUES (%s, %s, %s, %s)"
+    data = (produto.nome, produto.descricao, produto.quantidade_disponivel, produto.preco)
+    
+    cursor.execute(query, data)
+    conn.commit()
+    
+    cursor.close()
+    conn.close()
 
-    def remover_produto(self, produto_id):
-        with self.connection.cursor() as cursor:
-            sql = "DELETE FROM `Produtos` WHERE `ProdutoID` = %s"
-            cursor.execute(sql, (produto_id,))
-        self.connection.commit()
+    print(f"Produto {produto.nome} cadastrado com sucesso!")
 
-# Exemplo de uso
-estoque = Estoque()
-estoque.cadastrar_produto('Produto A', 'Descrição do Produto A', 100, 29.99)
-produtos = estoque.consultar_produtos()
-print(produtos)
+# Função para consultar produto
+
+def consultar_produto(id_produto):
+    conn = mysql.connector.connect(user='root', password='sua_senha', host='localhost', database='estoque')
+    cursor = conn.cursor()
+
+    query = "SELECT * FROM produtos WHERE id = %s"
+    cursor.execute(query, (id_produto,))
+    
+    resultado = cursor.fetchone()
+    if resultado:
+        produto = Produto(*resultado)
+        print(produto)
+    else:
+        print(f"Produto com ID {id_produto} não encontrado.")
+    
+    cursor.close()
+    conn.close()
+ 
+ # Função Atualizar quantidade de produto
+ 
+def atualizar_quantidade_produto(id_produto, quantidade):
+    conn = mysql.connector.connect(user='root', password='sua_senha', host='localhost', database='estoque')
+    cursor = conn.cursor()
+
+    query = "UPDATE produtos SET quantidade_disponivel = quantidade_disponivel + %s WHERE id = %s"
+    cursor.execute(query, (quantidade, id_produto))
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    print(f"Quantidade do produto ID {id_produto} atualizada com sucesso!")
 
 
+# Função para deletar produto
+
+def remover_produto(id_produto):
+    conn = mysql.connector.connect(user='root', password='sua_senha', host='localhost', database='estoque')
+    cursor = conn.cursor()
+
+    query = "DELETE FROM produtos WHERE id = %s"
+    cursor.execute(query, (id_produto,))
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    print(f"Produto ID {id_produto} removido com sucesso!")
+
+# Função para Registrar Venda
+
+def registrar_venda(venda):
+    conn = mysql.connector.connect(user='root', password='sua_senha', host='localhost', database='estoque')
+    cursor = conn.cursor()
+
+    query = "INSERT INTO vendas (produto_id, quantidade_vendida, data_venda) VALUES (%s, %s, %s)"
+    data = (venda.produto.id, venda.quantidade_vendida, venda.data_venda)
+    
+    cursor.execute(query, data)
+    conn.commit()
+
+    # Atualizando a quantidade do produto
+    venda.produto.atualizar_quantidade(-venda.quantidade_vendida)
+    atualizar_quantidade_produto(venda.produto.id, -venda.quantidade_vendida)
+
+    cursor.close()
+    conn.close()
+
+    print(f"Venda de {venda.quantidade_vendida} unidades de {venda.produto.nome} registrada com sucesso!")
